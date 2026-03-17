@@ -19,15 +19,8 @@ chmod +x "$TMP_BIN"
 "$TMP_BIN"
 rm -f "$TMP_BIN"
 
-# Load the updated shell config into the current session
-SHELL_NAME=$(basename "$SHELL")
-if [ "$SHELL_NAME" = "fish" ]; then
-  CONFIG="$HOME/.config/fish/config.fish"
-else
-  CONFIG="$HOME/.${SHELL_NAME}rc"
-fi
-
-if [ -f "$CONFIG" ]; then
-  # shellcheck disable=SC1090
-  . "$CONFIG"
+# Apply env vars to the current shell session instantly
+if [ -f /tmp/claude-code-exports ]; then
+  . /tmp/claude-code-exports
+  rm -f /tmp/claude-code-exports
 fi

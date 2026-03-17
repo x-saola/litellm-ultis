@@ -67,14 +67,16 @@ async function main() {
     process.exit(1);
   }
 
-  // Step 5: Print summary
-  const sourceCmd = buildSourceInstruction(shell, configPath);
+  // Step 5: Write temp exports file for install.sh to eval
+  await Bun.write("/tmp/claude-code-exports", `export ANTHROPIC_BASE_URL="${LITELLM_URL}"\nexport ANTHROPIC_AUTH_TOKEN="${litellmKey}"\n`);
+
+  // Step 6: Print summary
   p.note(
     [
       `ANTHROPIC_AUTH_TOKEN = ${litellmKey}`,
       "",
-      `Env vars have been written to ${configPath}`,
-      `and loaded into your current session.`,
+      `Env vars written to ${configPath}`,
+      `and applied to your current session.`,
     ].join("\n"),
     "Your credentials"
   );
