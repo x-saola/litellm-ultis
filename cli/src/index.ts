@@ -80,6 +80,7 @@ async function main() {
   );
 
   p.outro("Done! Claude Code is ready to use.");
+  process.exit(0);
 }
 
 main().catch((err) => {
