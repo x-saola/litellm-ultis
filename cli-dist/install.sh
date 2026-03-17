@@ -12,7 +12,7 @@ fi
 
 TMP_BIN=$(mktemp)
 echo "Downloading $BIN_NAME..."
-curl -fsSL "$BASE_URL/$BIN_NAME" -o "$TMP_BIN"
+curl -f --progress-bar "$BASE_URL/$BIN_NAME" -o "$TMP_BIN"
 
 xattr -cr "$TMP_BIN" 2>/dev/null || xattr -c "$TMP_BIN" 2>/dev/null || true
 chmod +x "$TMP_BIN"
