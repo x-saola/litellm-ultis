@@ -1,0 +1,20 @@
+{
+  "name": "cli",
+  "module": "src/index.ts",
+  "bin": "src/index.ts",
+  "scripts": {
+    "start": "bun src/index.ts",
+    "test": "bun test tests/"
+  },
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.1.0"
+  }
+}
