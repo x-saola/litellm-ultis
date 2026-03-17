@@ -73,24 +73,11 @@ async function main() {
     [
       `ANTHROPIC_AUTH_TOKEN = ${litellmKey}`,
       "",
-      `Reload your shell to apply:`,
-      `  ${sourceCmd}`,
-      "",
-      `Or open a new terminal window.`,
+      `Env vars have been written to ${configPath}`,
+      `and loaded into your current session.`,
     ].join("\n"),
     "Your credentials"
   );
-
-  await new Promise<void>((resolve) => {
-    process.stdout.write("Press Enter to exit… ");
-    process.stdin.setRawMode(true);
-    process.stdin.resume();
-    process.stdin.once("data", () => {
-      process.stdin.setRawMode(false);
-      process.stdin.pause();
-      resolve();
-    });
-  });
 
   p.outro("Done! Claude Code is ready to use.");
 }
