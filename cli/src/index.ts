@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import * as p from "@clack/prompts";
 import { ensureClaudeInstalled } from "./claude-check";
-import { getGoogleIdentityToken } from "./auth";
+import { getGoogleIdentityToken, isHeadless } from "./auth";
 import { fetchLiteLLMKey } from "./gateway";
 import { detectShell, writeShellConfig, buildSourceInstruction } from "./shell";
 
@@ -25,16 +25,25 @@ async function main() {
   }
 
   // Step 2: Google auth
-  const authSpinner = p.spinner();
-  authSpinner.start("Authenticating with Google");
   let identityToken: string;
-  try {
-    identityToken = await getGoogleIdentityToken();
-    authSpinner.stop("Authenticated");
-  } catch (err: any) {
-    authSpinner.stop("Failed");
-    p.cancel(err.message);
-    process.exit(1);
+  if (isHeadless()) {
+    try {
+      identityToken = await getGoogleIdentityToken();
+    } catch (err: any) {
+      p.cancel(err.message);
+      process.exit(1);
+    }
+  } else {
+    const authSpinner = p.spinner();
+    authSpinner.start("Authenticating with Google");
+    try {
+      identityToken = await getGoogleIdentityToken();
+      authSpinner.stop("Authenticated");
+    } catch (err: any) {
+      authSpinner.stop("Failed");
+      p.cancel(err.message);
+      process.exit(1);
+    }
   }
 
   // Step 3: Fetch LiteLLM key from gateway

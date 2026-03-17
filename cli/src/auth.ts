@@ -82,7 +82,7 @@ export async function exchangeCodeForIdToken(code: string, verifier: string): Pr
   return tokens.id_token;
 }
 
-function isHeadless(): boolean {
+export function isHeadless(): boolean {
   if (process.env.SSH_CONNECTION || process.env.SSH_TTY) return true;
   if (process.platform === "linux" && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) return true;
   return false;
