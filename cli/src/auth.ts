@@ -82,6 +82,59 @@ export async function exchangeCodeForIdToken(code: string, verifier: string): Pr
   return tokens.id_token;
 }
 
+function isHeadless(): boolean {
+  if (process.env.SSH_CONNECTION || process.env.SSH_TTY) return true;
+  if (process.platform === "linux" && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) return true;
+  return false;
+}
+
+async function headlessOAuthFlow(): Promise<string> {
+  const { verifier, challenge } = generatePKCE();
+  const authUrl =
+    "https://accounts.google.com/o/oauth2/v2/auth?" +
+    new URLSearchParams({
+      client_id: CLIENT_ID,
+      redirect_uri: REDIRECT_URI,
+      response_type: "code",
+      scope: "openid email profile",
+      code_challenge: challenge,
+      code_challenge_method: "S256",
+      access_type: "offline",
+    });
+
+  console.log("\n─────────────────────────────────────────────────────────────");
+  console.log("Headless environment detected. Manual sign-in required.");
+  console.log("─────────────────────────────────────────────────────────────");
+  console.log("\n1. Open this URL in your browser:\n");
+  console.log(`   ${authUrl}\n`);
+  console.log("2. Sign in with your Google account.");
+  console.log("3. You'll be redirected to localhost and see a connection error.");
+  console.log("4. Copy the full URL from the address bar and paste it below.\n");
+
+  process.stdout.write("Paste the redirect URL here: ");
+  const pastedUrl = await new Promise<string>((resolve) => {
+    let input = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.resume();
+    process.stdin.once("data", (chunk) => {
+      input = chunk.toString().trim();
+      process.stdin.pause();
+      resolve(input);
+    });
+  });
+
+  let code: string | null = null;
+  try {
+    const parsed = new URL(pastedUrl);
+    code = parsed.searchParams.get("code");
+  } catch {
+    throw new Error("Invalid URL pasted. Please paste the full redirect URL.");
+  }
+
+  if (!code) throw new Error("No auth code found in the pasted URL.");
+  return exchangeCodeForIdToken(code, verifier);
+}
+
 async function browserOAuthFlow(): Promise<string> {
   const { verifier, challenge } = generatePKCE();
   const authUrl =
@@ -106,5 +159,6 @@ async function browserOAuthFlow(): Promise<string> {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export async function getGoogleIdentityToken(): Promise<string> {
+  if (isHeadless()) return headlessOAuthFlow();
   return browserOAuthFlow();
 }
