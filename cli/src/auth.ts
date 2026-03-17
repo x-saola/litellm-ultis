@@ -9,20 +9,6 @@ const REDIRECT_PORT = 9_876;
 const REDIRECT_URI = `http://localhost:${REDIRECT_PORT}`;
 const AUTH_TIMEOUT_MS = 120_000;
 
-// ── gcloud fast path ──────────────────────────────────────────────────────────
-
-async function tryGcloud(): Promise<string | null> {
-  if (!Bun.which("gcloud")) return null;
-
-  const whoami = await $`gcloud auth list --filter=status:ACTIVE --format=${"value(account)"}`.quiet().nothrow();
-  if (!whoami.stdout.toString().trim()) return null;
-
-  const result = await $`gcloud auth print-identity-token`.quiet().nothrow();
-  if (result.exitCode !== 0) return null;
-
-  return result.stdout.toString().trim();
-}
-
 // ── PKCE helpers ──────────────────────────────────────────────────────────────
 
 function generatePKCE() {
@@ -97,13 +83,6 @@ export async function exchangeCodeForIdToken(code: string, verifier: string): Pr
 }
 
 async function browserOAuthFlow(): Promise<string> {
-  if (!CLIENT_ID || !CLIENT_SECRET) {
-    throw new Error(
-      "No gcloud found and no OAuth credentials configured.\n" +
-      "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables."
-    );
-  }
-
   const { verifier, challenge } = generatePKCE();
   const authUrl =
     "https://accounts.google.com/o/oauth2/v2/auth?" +
@@ -127,7 +106,5 @@ async function browserOAuthFlow(): Promise<string> {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export async function getGoogleIdentityToken(): Promise<string> {
-  const token = await tryGcloud();
-  if (token) return token;
   return browserOAuthFlow();
 }
