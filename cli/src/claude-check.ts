@@ -1,13 +1,13 @@
 import { $ } from "bun";
 
-export async function ensureClaudeInstalled(onInstalling?: () => void): Promise<void> {
+export async function ensureClaudeInstalled(onInstalling?: () => void): Promise<boolean> {
   const existing = Bun.which("claude");
-  if (existing) return;
+  if (existing) return false;
 
   if (process.platform === "linux") {
     onInstalling?.();
     try {
-      await $`bash -c "curl -fsSL https://claude.ai/install.sh | bash"`;
+      await $`bash -c "curl -fsSL https://claude.ai/install.sh | bash"`.quiet();
     } catch (err: any) {
       throw new Error(
         `Failed to install Claude Code on Linux. Try manually:\n` +
@@ -32,7 +32,7 @@ export async function ensureClaudeInstalled(onInstalling?: () => void): Promise<
         }
       }
     }
-    return;
+    return true;
   }
 
   if (process.platform !== "darwin") {
@@ -69,4 +69,5 @@ export async function ensureClaudeInstalled(onInstalling?: () => void): Promise<
       await $`xattr -cr ${brewPrefix.trim()}`.nothrow();
     }
   }
+  return false;
 }

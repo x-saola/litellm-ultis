@@ -15,9 +15,10 @@ async function main() {
   // Step 1: Ensure Claude Code is installed
   const claudeSpinner = p.spinner();
   claudeSpinner.start("Checking Claude Code installation");
+  let patchedPath = false;
   try {
-    await ensureClaudeInstalled(() => claudeSpinner.stop("Installing Claude Code…"));
-    if (Bun.which("claude")) claudeSpinner.stop("Claude Code is installed");
+    patchedPath = await ensureClaudeInstalled(() => claudeSpinner.stop("Installing Claude Code…"));
+    if (!patchedPath) claudeSpinner.stop("Claude Code is installed");
   } catch (err: any) {
     claudeSpinner.stop("Failed");
     p.cancel(err.message);
@@ -77,7 +78,13 @@ async function main() {
   }
 
   // Step 5: Write temp exports file for install.sh to eval
-  await Bun.write("/tmp/claude-code-exports", `export ANTHROPIC_BASE_URL="${LITELLM_URL}"\nexport ANTHROPIC_AUTH_TOKEN="${litellmKey}"\n`);
+  const exportsContent = [
+    `export ANTHROPIC_BASE_URL="${LITELLM_URL}"`,
+    `export ANTHROPIC_AUTH_TOKEN="${litellmKey}"`,
+    ...(patchedPath ? [`export PATH="$HOME/.local/bin:$PATH"`] : []),
+    "",
+  ].join("\n");
+  await Bun.write("/tmp/claude-code-exports", exportsContent);
 
   // Step 6: Print summary
   p.note(
