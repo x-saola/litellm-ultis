@@ -16,8 +16,8 @@ async function main() {
   const claudeSpinner = p.spinner();
   claudeSpinner.start("Checking Claude Code installation");
   try {
-    await ensureClaudeInstalled();
-    claudeSpinner.stop("Claude Code is installed");
+    await ensureClaudeInstalled(() => claudeSpinner.stop("Installing Claude Code…"));
+    if (Bun.which("claude")) claudeSpinner.stop("Claude Code is installed");
   } catch (err: any) {
     claudeSpinner.stop("Failed");
     p.cancel(err.message);

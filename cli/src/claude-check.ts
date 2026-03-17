@@ -1,11 +1,11 @@
 import { $ } from "bun";
 
-export async function ensureClaudeInstalled(): Promise<void> {
+export async function ensureClaudeInstalled(onInstalling?: () => void): Promise<void> {
   const existing = Bun.which("claude");
   if (existing) return;
 
   if (process.platform === "linux") {
-    console.log("Installing Claude Code via install script…");
+    onInstalling?.();
     try {
       await $`bash -c "curl -fsSL https://claude.ai/install.sh | bash"`;
     } catch (err: any) {
@@ -15,10 +15,22 @@ export async function ensureClaudeInstalled(): Promise<void> {
           `Error: ${err.message}`
       );
     }
-    // Claude installs to ~/.local/bin which may not be in PATH yet
+    // Claude installs to ~/.local/bin which may not be in PATH yet —
+    // patch the current process and persist it to shell configs.
     const localBin = `${process.env.HOME}/.local/bin`;
     if (!process.env.PATH?.includes(localBin)) {
       process.env.PATH = `${localBin}:${process.env.PATH}`;
+    }
+    const pathExport = `export PATH="$HOME/.local/bin:$PATH"`;
+    for (const rc of [".bashrc", ".bash_profile", ".profile", ".zshrc", ".zsh_profile"]) {
+      const rcPath = `${process.env.HOME}/${rc}`;
+      const file = Bun.file(rcPath);
+      if (await file.exists()) {
+        const content = await file.text();
+        if (!content.includes(".local/bin")) {
+          await Bun.write(rcPath, content.trimEnd() + `\n${pathExport}\n`);
+        }
+      }
     }
     return;
   }
