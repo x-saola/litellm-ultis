@@ -88,6 +88,24 @@ function isHeadless(): boolean {
   return false;
 }
 
+async function readLineFromTTY(prompt: string): Promise<string> {
+  // Open /dev/tty directly so it works even when stdin is a pipe (e.g. curl | bash)
+  const { createReadStream } = await import("fs");
+  return new Promise((resolve, reject) => {
+    process.stderr.write(prompt);
+    const stream = createReadStream("/dev/tty", { encoding: "utf8" });
+    let buf = "";
+    stream.on("data", (chunk: string) => {
+      buf += chunk;
+      if (buf.includes("\n")) {
+        stream.destroy();
+        resolve((buf.split("\n")[0] ?? "").trim());
+      }
+    });
+    stream.on("error", reject);
+  });
+}
+
 async function headlessOAuthFlow(): Promise<string> {
   const { verifier, challenge } = generatePKCE();
   const authUrl =
@@ -102,36 +120,40 @@ async function headlessOAuthFlow(): Promise<string> {
       access_type: "offline",
     });
 
-  console.log("\n─────────────────────────────────────────────────────────────");
-  console.log("Headless environment detected. Manual sign-in required.");
-  console.log("─────────────────────────────────────────────────────────────");
-  console.log("\n1. Open this URL in your browser:\n");
-  console.log(`   ${authUrl}\n`);
-  console.log("2. Sign in with your Google account.");
-  console.log("3. You'll be redirected to localhost and see a connection error.");
-  console.log("4. Copy the full URL from the address bar and paste it below.\n");
+  process.stderr.write("\n");
+  process.stderr.write("═══════════════════════════════════════════════════════════════\n");
+  process.stderr.write("  GOOGLE SIGN-IN — Remote / headless environment detected\n");
+  process.stderr.write("═══════════════════════════════════════════════════════════════\n");
+  process.stderr.write("\n");
+  process.stderr.write("  STEP 1 — Open this URL in your LOCAL browser (not the VM):\n");
+  process.stderr.write("\n");
+  process.stderr.write(`  ${authUrl}\n`);
+  process.stderr.write("\n");
+  process.stderr.write("  STEP 2 — Sign in with your Google account.\n");
+  process.stderr.write("\n");
+  process.stderr.write("  STEP 3 — After signing in, your browser will try to load\n");
+  process.stderr.write("           http://localhost:9876/?code=... and show an error.\n");
+  process.stderr.write("           That is EXPECTED. Copy the full URL from the\n");
+  process.stderr.write("           address bar — it looks like:\n");
+  process.stderr.write("\n");
+  process.stderr.write("           http://localhost:9876/?code=4/0AX4XfWh...&scope=...\n");
+  process.stderr.write("\n");
+  process.stderr.write("  STEP 4 — Paste that URL below and press Enter.\n");
+  process.stderr.write("\n");
+  process.stderr.write("═══════════════════════════════════════════════════════════════\n");
+  process.stderr.write("\n");
 
-  process.stdout.write("Paste the redirect URL here: ");
-  const pastedUrl = await new Promise<string>((resolve) => {
-    let input = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.resume();
-    process.stdin.once("data", (chunk) => {
-      input = chunk.toString().trim();
-      process.stdin.pause();
-      resolve(input);
-    });
-  });
+  const pastedUrl = await readLineFromTTY("  Paste the redirect URL here: ");
 
   let code: string | null = null;
   try {
     const parsed = new URL(pastedUrl);
     code = parsed.searchParams.get("code");
   } catch {
-    throw new Error("Invalid URL pasted. Please paste the full redirect URL.");
+    throw new Error("Invalid URL pasted. Please paste the full redirect URL from the address bar.");
   }
 
-  if (!code) throw new Error("No auth code found in the pasted URL.");
+  if (!code) throw new Error("No auth code found in the pasted URL. Make sure you copied the full URL.");
   return exchangeCodeForIdToken(code, verifier);
 }
 
