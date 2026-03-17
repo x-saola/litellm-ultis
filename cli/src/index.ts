@@ -81,9 +81,15 @@ async function main() {
     "Your credentials"
   );
 
-  await p.text({
-    message: "Press Enter to exit…",
-    placeholder: "",
+  await new Promise<void>((resolve) => {
+    process.stdout.write("Press Enter to exit… ");
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.once("data", () => {
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+      resolve();
+    });
   });
 
   p.outro("Done! Claude Code is ready to use.");
