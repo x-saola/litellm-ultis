@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.135.1",
     "google-auth>=2.49.1",
+    "google-cloud-firestore>=2.25.0",
     "httpx>=0.28.1",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",

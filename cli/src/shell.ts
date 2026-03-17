@@ -68,8 +68,8 @@ function buildEnvBlock(shell: Shell, baseUrl: string, authToken: string): string
   const lines: string[] = [MARKER_START];
 
   if (shell === "fish") {
-    lines.push(`set -Ux ANTHROPIC_BASE_URL "${baseUrl}"`);
-    lines.push(`set -Ux ANTHROPIC_AUTH_TOKEN "${authToken}"`);
+    lines.push(`set -gx ANTHROPIC_BASE_URL "${baseUrl}"`);
+    lines.push(`set -gx ANTHROPIC_AUTH_TOKEN "${authToken}"`);
   } else if (shell === "powershell") {
     lines.push(`$env:ANTHROPIC_BASE_URL = "${baseUrl}"`);
     lines.push(`$env:ANTHROPIC_AUTH_TOKEN = "${authToken}"`);

@@ -1,7 +1,5 @@
 """Integration tests for the FastAPI application."""
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 from unittest.mock import patch, AsyncMock
 
 from app.config import Settings, get_settings
@@ -12,7 +10,6 @@ import app.main as main_module
 FAKE_SETTINGS = Settings(
     litellm_master_key="sk-master",
     litellm_url="https://litellm.example.com",
-    whitelist_domains=["corp.com", "partner.org"],
     api_key="test-api-key",
 )
 
@@ -21,15 +18,11 @@ def override_settings():
     return FAKE_SETTINGS
 
 
-# Build a test app with the fake settings injected into the middleware
+from fastapi.testclient import TestClient
 from app.main import app as _app
+
 _app.dependency_overrides[get_settings] = override_settings
 
-# Patch the middleware's settings factory on the existing middleware instance
-for layer in _app.middleware_stack.__class__.__mro__:
-    pass  # just importing; actual patch done below
-
-# Re-create a fresh test client; patch via middleware settings_factory attribute
 for middleware in _app.user_middleware:
     if middleware.cls is APIKeyMiddleware:
         middleware.kwargs["settings_factory"] = override_settings
@@ -63,7 +56,7 @@ class TestAPIKeyMiddleware:
         claims = {"email": "alice@corp.com", "sub": "uid-123"}
         with (
             patch("app.main.verify_google_token", return_value=claims),
-            patch("app.main.create_virtual_key", new=AsyncMock(return_value="sk-xyz")),
+            patch("app.main.get_key", new=AsyncMock(return_value="sk-existing")),
         ):
             response = client.post("/key", headers={
                 "Authorization": "Bearer valid.token",
@@ -81,16 +74,30 @@ class TestGenerateKey:
             **VALID_API_KEY_HEADER,
         })
 
-    def test_returns_key_for_whitelisted_user(self):
+    def test_returns_existing_key_from_db(self):
         with (
             patch("app.main.verify_google_token", return_value=self.VALID_CLAIMS),
-            patch("app.main.create_virtual_key", new=AsyncMock(return_value="sk-virtual-xyz")),
+            patch("app.main.get_key", new=AsyncMock(return_value="sk-existing")),
         ):
             response = self._post_with_token()
         assert response.status_code == 200
         data = response.json()
-        assert data["key"] == "sk-virtual-xyz"
+        assert data["key"] == "sk-existing"
         assert data["email"] == "alice@corp.com"
+
+    def test_creates_and_saves_key_when_not_in_db(self):
+        teams = [{"team_alias": "corp.com", "team_id": "team-1"}]
+        with (
+            patch("app.main.verify_google_token", return_value=self.VALID_CLAIMS),
+            patch("app.main.get_key", new=AsyncMock(return_value=None)),
+            patch("app.main.get_teams", new=AsyncMock(return_value=teams)),
+            patch("app.main.create_virtual_key", new=AsyncMock(return_value="sk-new")),
+            patch("app.main.save_key", new=AsyncMock()) as mock_save,
+        ):
+            response = self._post_with_token()
+        assert response.status_code == 200
+        assert response.json()["key"] == "sk-new"
+        mock_save.assert_awaited_once_with("alice@corp.com", "sk-new")
 
     def test_rejects_missing_authorization_header(self):
         response = client.post("/key", headers=VALID_API_KEY_HEADER)
@@ -109,28 +116,24 @@ class TestGenerateKey:
             response = self._post_with_token("bad.token")
         assert response.status_code == 401
 
-    def test_returns_403_for_non_whitelisted_domain(self):
+    def test_rejects_unauthorized_domain(self):
         claims = {"email": "user@outsider.io", "sub": "uid-999"}
-        with patch("app.main.verify_google_token", return_value=claims):
-            response = self._post_with_token()
-        assert response.status_code == 403
-
-    def test_passes_correct_email_to_litellm(self):
+        teams = [{"team_alias": "corp.com", "team_id": "team-1"}]
         with (
-            patch("app.main.verify_google_token", return_value=self.VALID_CLAIMS),
-            patch("app.main.create_virtual_key", new=AsyncMock(return_value="sk-new")) as mock_create,
+            patch("app.main.verify_google_token", return_value=claims),
+            patch("app.main.get_key", new=AsyncMock(return_value=None)),
+            patch("app.main.get_teams", new=AsyncMock(return_value=teams)),
         ):
-            self._post_with_token()
-        mock_create.assert_awaited_once_with(
-            litellm_url=FAKE_SETTINGS.litellm_url,
-            master_key=FAKE_SETTINGS.litellm_master_key,
-            email="alice@corp.com",
-        )
+            response = self._post_with_token()
+        assert response.status_code == 401
 
     def test_propagates_litellm_502_error(self):
         from fastapi import HTTPException
+        teams = [{"team_alias": "corp.com", "team_id": "team-1"}]
         with (
             patch("app.main.verify_google_token", return_value=self.VALID_CLAIMS),
+            patch("app.main.get_key", new=AsyncMock(return_value=None)),
+            patch("app.main.get_teams", new=AsyncMock(return_value=teams)),
             patch("app.main.create_virtual_key", new=AsyncMock(side_effect=HTTPException(status_code=502, detail="LiteLLM down"))),
         ):
             response = self._post_with_token()

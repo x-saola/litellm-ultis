@@ -6,6 +6,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.auth import verify_google_token, extract_email
 from app.config import Settings, get_settings
 from app.litellm_client import create_virtual_key, get_teams, find_team_for_domain
+from app.db import get_key, save_key
 
 
 app = FastAPI(title="LiteLLM Access Gateway")
@@ -60,6 +61,10 @@ async def generate_key(
     claims = verify_google_token(token)
     email = extract_email(claims)
 
+    existing_key = await get_key(email)
+    if existing_key:
+        return KeyResponse(key=existing_key, email=email)
+
     teams = await get_teams(
         litellm_url=settings.litellm_url,
         master_key=settings.litellm_master_key,
@@ -78,4 +83,5 @@ async def generate_key(
         team_id=team_id,
     )
 
+    await save_key(email, virtual_key)
     return KeyResponse(key=virtual_key, email=email)

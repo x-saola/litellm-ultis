@@ -9,6 +9,7 @@ from app.litellm_client import create_virtual_key
 LITELLM_URL = "https://litellm.example.com"
 MASTER_KEY = "sk-master"
 EMAIL = "alice@corp.com"
+TEAM_ID = "team-1"
 
 
 @pytest.mark.asyncio
@@ -18,7 +19,7 @@ class TestCreateVirtualKey:
         respx.post(f"{LITELLM_URL}/key/generate").mock(
             return_value=httpx.Response(200, json={"key": "sk-virtual-abc123"})
         )
-        key = await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL)
+        key = await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL, TEAM_ID)
         assert key == "sk-virtual-abc123"
 
     @respx.mock
@@ -26,12 +27,13 @@ class TestCreateVirtualKey:
         route = respx.post(f"{LITELLM_URL}/key/generate").mock(
             return_value=httpx.Response(200, json={"key": "sk-test"})
         )
-        await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL, budget_usd=200.0)
+        await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL, TEAM_ID, budget_usd=200.0)
 
         request = route.calls.last.request
         import json
         body = json.loads(request.content)
         assert body["key_alias"] == EMAIL
+        assert body["team_id"] == TEAM_ID
         assert body["max_budget"] == 200.0
         assert body["budget_duration"] == "monthly"
 
@@ -40,7 +42,7 @@ class TestCreateVirtualKey:
         route = respx.post(f"{LITELLM_URL}/key/generate").mock(
             return_value=httpx.Response(200, json={"key": "sk-test"})
         )
-        await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL)
+        await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL, TEAM_ID)
 
         request = route.calls.last.request
         assert request.headers["Authorization"] == f"Bearer {MASTER_KEY}"
@@ -51,7 +53,7 @@ class TestCreateVirtualKey:
             return_value=httpx.Response(500, text="Internal Server Error")
         )
         with pytest.raises(HTTPException) as exc_info:
-            await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL)
+            await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL, TEAM_ID)
         assert exc_info.value.status_code == 502
 
     @respx.mock
@@ -60,7 +62,7 @@ class TestCreateVirtualKey:
             side_effect=httpx.ConnectError("connection refused")
         )
         with pytest.raises(HTTPException) as exc_info:
-            await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL)
+            await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL, TEAM_ID)
         assert exc_info.value.status_code == 502
 
     @respx.mock
@@ -69,7 +71,7 @@ class TestCreateVirtualKey:
             return_value=httpx.Response(200, json={"token_id": "xyz"})
         )
         with pytest.raises(HTTPException) as exc_info:
-            await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL)
+            await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL, TEAM_ID)
         assert exc_info.value.status_code == 502
 
     @respx.mock
@@ -77,19 +79,22 @@ class TestCreateVirtualKey:
         route = respx.post(f"{LITELLM_URL}/key/generate").mock(
             return_value=httpx.Response(200, json={"key": "sk-test"})
         )
-        await create_virtual_key(LITELLM_URL + "/", MASTER_KEY, EMAIL)
+        await create_virtual_key(LITELLM_URL + "/", MASTER_KEY, EMAIL, TEAM_ID)
         assert route.called
 
     @respx.mock
-    async def test_returns_existing_key_when_alias_already_exists(self):
+    async def test_regenerates_when_alias_already_exists(self):
         respx.post(f"{LITELLM_URL}/key/generate").mock(
             return_value=httpx.Response(400, json={"error": {"message": "Key with alias 'alice@corp.com' already exists."}})
         )
         respx.get(f"{LITELLM_URL}/key/list").mock(
-            return_value=httpx.Response(200, json={"keys": [{"key_alias": EMAIL, "key": "sk-existing-key"}]})
+            return_value=httpx.Response(200, json={"keys": [{"key_alias": EMAIL, "token": "tok-abc"}]})
         )
-        key = await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL)
-        assert key == "sk-existing-key"
+        respx.post(f"{LITELLM_URL}/key/tok-abc/regenerate").mock(
+            return_value=httpx.Response(200, json={"key": "sk-regenerated"})
+        )
+        key = await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL, TEAM_ID)
+        assert key == "sk-regenerated"
 
     @respx.mock
     async def test_raises_502_when_existing_key_not_found_in_list(self):
@@ -100,5 +105,5 @@ class TestCreateVirtualKey:
             return_value=httpx.Response(200, json={"keys": []})
         )
         with pytest.raises(HTTPException) as exc_info:
-            await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL)
+            await create_virtual_key(LITELLM_URL, MASTER_KEY, EMAIL, TEAM_ID)
         assert exc_info.value.status_code == 502
