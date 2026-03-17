@@ -37,7 +37,7 @@ async function waitForAuthCode(): Promise<string> {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(
         `<html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;padding:2rem">
-          <h2>&#10003; Authentication successful!</h2>
+          <h2>Authentication successful!</h2>
           <p>You can close this tab and return to the terminal.</p>
         </body></html>`
       );
