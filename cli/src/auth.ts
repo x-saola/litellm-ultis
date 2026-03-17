@@ -120,30 +120,9 @@ async function headlessOAuthFlow(): Promise<string> {
       access_type: "offline",
     });
 
-  process.stderr.write("\n");
-  process.stderr.write("═══════════════════════════════════════════════════════════════\n");
-  process.stderr.write("  GOOGLE SIGN-IN — Remote / headless environment detected\n");
-  process.stderr.write("═══════════════════════════════════════════════════════════════\n");
-  process.stderr.write("\n");
-  process.stderr.write("  STEP 1 — Open this URL in your LOCAL browser (not the VM):\n");
-  process.stderr.write("\n");
-  process.stderr.write(`  ${authUrl}\n`);
-  process.stderr.write("\n");
-  process.stderr.write("  STEP 2 — Sign in with your Google account.\n");
-  process.stderr.write("\n");
-  process.stderr.write("  STEP 3 — After signing in, your browser will try to load\n");
-  process.stderr.write("           http://localhost:9876/?code=... and show an error.\n");
-  process.stderr.write("           That is EXPECTED. Copy the full URL from the\n");
-  process.stderr.write("           address bar — it looks like:\n");
-  process.stderr.write("\n");
-  process.stderr.write("           http://localhost:9876/?code=4/0AX4XfWh...&scope=...\n");
-  process.stderr.write("\n");
-  process.stderr.write("  STEP 4 — Paste that URL below and press Enter.\n");
-  process.stderr.write("\n");
-  process.stderr.write("═══════════════════════════════════════════════════════════════\n");
-  process.stderr.write("\n");
+  process.stderr.write(`\nOpen this URL in your browser:\n\n  ${authUrl}\n\n`);
 
-  const pastedUrl = await readLineFromTTY("  Paste the redirect URL here: ");
+  const pastedUrl = await readLineFromTTY("Paste the redirect URL (http://localhost:9876/?code=...): ");
 
   let code: string | null = null;
   try {

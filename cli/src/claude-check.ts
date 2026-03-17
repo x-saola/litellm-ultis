@@ -15,6 +15,11 @@ export async function ensureClaudeInstalled(): Promise<void> {
           `Error: ${err.message}`
       );
     }
+    // Claude installs to ~/.local/bin which may not be in PATH yet
+    const localBin = `${process.env.HOME}/.local/bin`;
+    if (!process.env.PATH?.includes(localBin)) {
+      process.env.PATH = `${localBin}:${process.env.PATH}`;
+    }
     return;
   }
 
