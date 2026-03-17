@@ -4,9 +4,23 @@ export async function ensureClaudeInstalled(): Promise<void> {
   const existing = Bun.which("claude");
   if (existing) return;
 
+  if (process.platform === "linux") {
+    console.log("Installing Claude Code via install script…");
+    try {
+      await $`bash -c "curl -fsSL https://claude.ai/install.sh | bash"`;
+    } catch (err: any) {
+      throw new Error(
+        `Failed to install Claude Code on Linux. Try manually:\n` +
+          `  curl -fsSL https://claude.ai/install.sh | bash\n\n` +
+          `Error: ${err.message}`
+      );
+    }
+    return;
+  }
+
   if (process.platform !== "darwin") {
     throw new Error(
-      "Auto-install is only supported on macOS. Please install Claude Code manually:\n" +
+      "Auto-install is only supported on macOS and Linux. Please install Claude Code manually:\n" +
         "  https://docs.anthropic.com/claude-code"
     );
   }

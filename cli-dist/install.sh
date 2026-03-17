@@ -1,20 +1,34 @@
 #!/bin/sh
 set -e
 
+OS=$(uname -s)
 ARCH=$(uname -m)
 BASE_URL="https://raw.githubusercontent.com/x-saola/litellm-ultis/main/cli-dist"
 
-if [ "$ARCH" = "arm64" ]; then
-  BIN_NAME="setup-claude-macos-arm64"
+if [ "$OS" = "Darwin" ]; then
+  if [ "$ARCH" = "arm64" ]; then
+    BIN_NAME="claude-setup-macos-arm64"
+  else
+    BIN_NAME="claude-setup-macos-x64"
+  fi
+elif [ "$OS" = "Linux" ]; then
+  if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+    BIN_NAME="claude-setup-linux-arm64"
+  else
+    BIN_NAME="claude-setup-linux-x64"
+  fi
 else
-  BIN_NAME="setup-claude-macos-x64"
+  echo "Unsupported OS: $OS"
+  exit 1
 fi
 
 TMP_BIN=$(mktemp)
 echo "Downloading $BIN_NAME..."
 curl -f --progress-bar "$BASE_URL/$BIN_NAME" -o "$TMP_BIN" 2>/dev/tty
 
-xattr -cr "$TMP_BIN" 2>/dev/null || xattr -c "$TMP_BIN" 2>/dev/null || true
+if [ "$OS" = "Darwin" ]; then
+  xattr -cr "$TMP_BIN" 2>/dev/null || xattr -c "$TMP_BIN" 2>/dev/null || true
+fi
 chmod +x "$TMP_BIN"
 "$TMP_BIN"
 rm -f "$TMP_BIN"
