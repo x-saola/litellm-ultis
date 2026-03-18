@@ -5,7 +5,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.auth import verify_google_token, extract_email
 from app.config import Settings, get_settings
-from app.litellm_client import create_virtual_key, get_teams, find_team_for_domain
+from app.litellm_client import create_virtual_key, get_teams, find_team_for_domain, key_exists
 from app.db import get_key, save_key
 
 
@@ -62,7 +62,7 @@ async def generate_key(
     email = extract_email(claims)
 
     existing_key = await get_key(email)
-    if existing_key:
+    if existing_key and await key_exists(settings.litellm_url, settings.litellm_master_key, existing_key):
         return KeyResponse(key=existing_key, email=email)
 
     teams = await get_teams(

@@ -2,6 +2,18 @@ import httpx
 from fastapi import HTTPException, status
 
 
+async def key_exists(litellm_url: str, master_key: str, key: str) -> bool:
+    """Return True if the key still exists in LiteLLM."""
+    base_url = litellm_url.rstrip("/")
+    headers = {"Authorization": f"Bearer {master_key}"}
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            resp = await client.get(f"{base_url}/key/info", headers=headers, params={"key": key})
+            return resp.status_code == 200
+        except httpx.RequestError:
+            return True  # Network error — assume key is valid to avoid unnecessary recreation
+
+
 async def get_teams(litellm_url: str, master_key: str) -> list[dict]:
     """Fetch all teams from LiteLLM."""
     base_url = litellm_url.rstrip("/")
