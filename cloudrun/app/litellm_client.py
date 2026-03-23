@@ -98,7 +98,7 @@ async def create_virtual_key(
         "key_alias": email,
         "team_id": team_id,
         "max_budget": budget_usd,
-        "budget_duration": "monthly",
+        "budget_duration": "30d",
     }
 
     async with httpx.AsyncClient(timeout=30.0) as client:

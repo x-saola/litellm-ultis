@@ -3,7 +3,7 @@ import * as p from "@clack/prompts";
 import { ensureClaudeInstalled } from "./claude-check";
 import { getGoogleIdentityToken, isHeadless } from "./auth";
 import { fetchLiteLLMKey } from "./gateway";
-import { detectShell, writeShellConfig, buildSourceInstruction } from "./shell";
+import { writeClaudeSettings } from "./claude-settings";
 
 const LITELLM_URL = "https://litellm.athena.tools/";
 const GATEWAY_API_KEY = process.env.GATEWAY_API_KEY ?? "V9!z$6$@IE2qw4TODSuP";
@@ -63,24 +63,21 @@ async function main() {
     process.exit(1);
   }
 
-  // Step 4: Write env vars to shell config
-  const shell = detectShell();
-  const configSpinner = p.spinner();
-  configSpinner.start(`Writing env vars to ${shell} config`);
-  let configPath: string;
+  // Step 4: Write env vars to Claude Code settings.json
+  const settingsSpinner = p.spinner();
+  settingsSpinner.start("Writing env vars to Claude Code settings");
+  let settingsPath: string;
   try {
-    configPath = await writeShellConfig(shell, LITELLM_URL, litellmKey);
-    configSpinner.stop(`Written to ${configPath}`);
+    settingsPath = await writeClaudeSettings(LITELLM_URL, litellmKey);
+    settingsSpinner.stop(`Written to ${settingsPath}`);
   } catch (err: any) {
-    configSpinner.stop("Failed to write shell config");
+    settingsSpinner.stop("Failed to write Claude Code settings");
     p.cancel(err.message);
     process.exit(1);
   }
 
-  // Step 5: Write temp exports file for install.sh to eval
+  // Step 5: Write temp exports file for install.sh to eval (PATH patch only)
   const exportsContent = [
-    `export ANTHROPIC_BASE_URL="${LITELLM_URL}"`,
-    `export ANTHROPIC_AUTH_TOKEN="${litellmKey}"`,
     ...(patchedPath ? [`export PATH="$HOME/.local/bin:$PATH"`] : []),
     "",
   ].join("\n");
@@ -91,8 +88,7 @@ async function main() {
     [
       `ANTHROPIC_AUTH_TOKEN = ${litellmKey}`,
       "",
-      `Env vars written to ${configPath}`,
-      `and applied to your current session.`,
+      `Env vars written to ${settingsPath}`,
     ].join("\n"),
     "Your credentials"
   );
