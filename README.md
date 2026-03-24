@@ -15,6 +15,16 @@ This will:
 2. Authenticate you with Google
 3. Configure Claude Code to use the LiteLLM gateway
 
+## Enable Telemetry
+
+To enable Claude Code telemetry (OpenTelemetry metrics and logs), run:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/x-saola/litellm-ultis/main/cli-dist/setup-telemetry.sh | bash
+```
+
+This adds telemetry environment variables to `~/.claude/settings.json`, pointing to the monitoring endpoint at `http://claude-monitoring.athena.tools`.
+
 ## Architecture
 
 - `cloudrun/` — Python FastAPI gateway (verifies Google ID token, checks domain whitelist, creates LiteLLM key)
