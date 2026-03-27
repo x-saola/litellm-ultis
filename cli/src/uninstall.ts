@@ -6,6 +6,7 @@ import { homedir } from "os";
 const MARKER_START = "# >>> claude-code <<<";
 const MARKER_END = "# >>> claude-code end <<<";
 const SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
+const VARS = ["ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"];
 
 const SHELL_RC_FILES = [
   join(homedir(), ".zshrc"),
@@ -15,21 +16,43 @@ const SHELL_RC_FILES = [
   join(homedir(), "Documents", "PowerShell", "Microsoft.PowerShell_profile.ps1"),
 ];
 
+// Patterns that match any way these vars could be set in shell rc files
+const BARE_LINE_PATTERNS = VARS.flatMap((v) => [
+  new RegExp(`^export ${v}=.*$`, "m"),
+  new RegExp(`^set -gx ${v} .*$`, "m"),         // fish
+  new RegExp(`^\\$env:${v} = .*$`, "m"),         // powershell
+  new RegExp(`^\\[Environment\\]::SetEnvironmentVariable\\('${v}'.*$`, "m"), // powershell persistent
+]);
+
 async function removeFromShellRc(filePath: string): Promise<boolean> {
   const file = Bun.file(filePath);
   if (!(await file.exists())) return false;
 
-  const content = await file.text();
+  let content = await file.text();
+  let changed = false;
+
+  // Remove marker block
   const startIdx = content.indexOf(MARKER_START);
   const endIdx = content.indexOf(MARKER_END);
-  if (startIdx === -1 || endIdx === -1) return false;
+  if (startIdx !== -1 && endIdx !== -1) {
+    content =
+      content.slice(0, startIdx).trimEnd() +
+      "\n" +
+      content.slice(endIdx + MARKER_END.length).trimStart();
+    changed = true;
+  }
 
-  const cleaned =
-    content.slice(0, startIdx).trimEnd() +
-    "\n" +
-    content.slice(endIdx + MARKER_END.length).trimStart();
+  // Remove any bare export/set lines outside markers
+  for (const pattern of BARE_LINE_PATTERNS) {
+    if (pattern.test(content)) {
+      content = content.replace(pattern, "");
+      changed = true;
+    }
+  }
 
-  await Bun.write(filePath, cleaned.trimEnd() + "\n");
+  if (!changed) return false;
+
+  await Bun.write(filePath, content.trimEnd() + "\n");
   return true;
 }
 
@@ -46,8 +69,14 @@ async function removeFromClaudeSettings(): Promise<boolean> {
 
   if (!settings.env) return false;
 
-  delete settings.env.ANTHROPIC_BASE_URL;
-  delete settings.env.ANTHROPIC_AUTH_TOKEN;
+  let changed = false;
+  for (const v of VARS) {
+    if (v in settings.env) {
+      delete settings.env[v];
+      changed = true;
+    }
+  }
+  if (!changed) return false;
 
   if (Object.keys(settings.env).length === 0) {
     delete settings.env;
@@ -63,7 +92,7 @@ async function main() {
 
   const removed: string[] = [];
 
-  // Remove from shell rc files
+  // Remove from shell rc files (markers + bare lines)
   for (const rcFile of SHELL_RC_FILES) {
     const cleaned = await removeFromShellRc(rcFile);
     if (cleaned) removed.push(rcFile);
@@ -73,11 +102,15 @@ async function main() {
   const settingsCleaned = await removeFromClaudeSettings();
   if (settingsCleaned) removed.push(SETTINGS_PATH);
 
+  // Write unset commands to temp file for the shell script to source
+  const unsetContent = VARS.map((v) => `unset ${v}`).join("\n") + "\n";
+  await Bun.write("/tmp/claude-code-unset", unsetContent);
+
   if (removed.length === 0) {
     p.outro("Nothing to remove — no Claude Code env vars found.");
   } else {
     p.note(removed.join("\n"), "Cleaned up");
-    p.outro("Done! ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN have been removed.\nRestart your shell or run: unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN");
+    p.outro("Done! Env vars removed from all config files.");
   }
 
   process.exit(0);

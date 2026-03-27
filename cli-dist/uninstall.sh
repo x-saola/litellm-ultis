@@ -32,3 +32,24 @@ fi
 chmod +x "$TMP_BIN"
 "$TMP_BIN"
 rm -f "$TMP_BIN"
+
+# Unset in the current shell process
+unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN
+
+# On macOS, remove from launchd environment so all new processes are clean
+if [ "$OS" = "Darwin" ]; then
+  launchctl unsetenv ANTHROPIC_BASE_URL 2>/dev/null || true
+  launchctl unsetenv ANTHROPIC_AUTH_TOKEN 2>/dev/null || true
+fi
+
+# On Linux, remove from /etc/environment if present (system-wide)
+if [ "$OS" = "Linux" ] && [ -f /etc/environment ]; then
+  sed -i '/^ANTHROPIC_BASE_URL=/d' /etc/environment 2>/dev/null || true
+  sed -i '/^ANTHROPIC_AUTH_TOKEN=/d' /etc/environment 2>/dev/null || true
+fi
+
+# Source the unset commands written by the binary (applies to this shell process)
+if [ -f /tmp/claude-code-unset ]; then
+  . /tmp/claude-code-unset
+  rm -f /tmp/claude-code-unset
+fi
