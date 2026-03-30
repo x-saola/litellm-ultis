@@ -3,8 +3,8 @@ import { homedir } from "os";
 
 export type Shell = "bash" | "zsh" | "fish" | "powershell";
 
-const MARKER_START = "# >>> claude-code <<<";
-const MARKER_END = "# >>> claude-code end <<<";
+export const MARKER_START = "# >>> claude-code <<<";
+export const MARKER_END = "# >>> claude-code end <<<";
 
 export function detectShell(): Shell {
   if (process.platform === "win32") return "powershell";

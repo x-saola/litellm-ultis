@@ -2,10 +2,9 @@
 import * as p from "@clack/prompts";
 import { join } from "path";
 import { homedir } from "os";
+import { MARKER_START, MARKER_END } from "./shell";
+import { SETTINGS_PATH } from "./claude-settings";
 
-const MARKER_START = "# >>> claude-code <<<";
-const MARKER_END = "# >>> claude-code end <<<";
-const SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
 const VARS = ["ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"];
 
 const SHELL_RC_FILES = [
@@ -18,10 +17,10 @@ const SHELL_RC_FILES = [
 
 // Patterns that match any way these vars could be set in shell rc files
 const BARE_LINE_PATTERNS = VARS.flatMap((v) => [
-  new RegExp(`^export ${v}=.*$`, "m"),
-  new RegExp(`^set -gx ${v} .*$`, "m"),         // fish
-  new RegExp(`^\\$env:${v} = .*$`, "m"),         // powershell
-  new RegExp(`^\\[Environment\\]::SetEnvironmentVariable\\('${v}'.*$`, "m"), // powershell persistent
+  new RegExp(`^export ${v}=.*$`, "gm"),
+  new RegExp(`^set -gx ${v} .*$`, "gm"),         // fish
+  new RegExp(`^\\$env:${v} = .*$`, "gm"),         // powershell
+  new RegExp(`^\\[Environment\\]::SetEnvironmentVariable\\('${v}'.*$`, "gm"), // powershell persistent
 ]);
 
 async function removeFromShellRc(filePath: string): Promise<boolean> {
@@ -44,8 +43,9 @@ async function removeFromShellRc(filePath: string): Promise<boolean> {
 
   // Remove any bare export/set lines outside markers
   for (const pattern of BARE_LINE_PATTERNS) {
-    if (pattern.test(content)) {
-      content = content.replace(pattern, "");
+    const next = content.replace(pattern, "");
+    if (next !== content) {
+      content = next;
       changed = true;
     }
   }
@@ -93,18 +93,16 @@ async function main() {
   const removed: string[] = [];
 
   // Remove from shell rc files (markers + bare lines)
-  for (const rcFile of SHELL_RC_FILES) {
-    const cleaned = await removeFromShellRc(rcFile);
-    if (cleaned) removed.push(rcFile);
+  const rcResults = await Promise.all(
+    SHELL_RC_FILES.map(async (rcFile) => ({ file: rcFile, cleaned: await removeFromShellRc(rcFile) }))
+  );
+  for (const { file, cleaned } of rcResults) {
+    if (cleaned) removed.push(file);
   }
 
   // Remove from Claude Code settings.json
   const settingsCleaned = await removeFromClaudeSettings();
   if (settingsCleaned) removed.push(SETTINGS_PATH);
-
-  // Write unset commands to temp file for the shell script to source
-  const unsetContent = VARS.map((v) => `unset ${v}`).join("\n") + "\n";
-  await Bun.write("/tmp/claude-code-unset", unsetContent);
 
   if (removed.length === 0) {
     p.outro("Nothing to remove — no Claude Code env vars found.");

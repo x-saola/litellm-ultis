@@ -29,11 +29,17 @@ This adds telemetry environment variables to `~/.claude/settings.json`, pointing
 
 To remove Claude Code env vars from your machine:
 
+**bash / zsh:**
 ```sh
-curl -fsSL https://raw.githubusercontent.com/x-saola/litellm-ultis/main/cli-dist/uninstall.sh | sh
+curl -fsSL https://raw.githubusercontent.com/x-saola/litellm-ultis/main/cli-dist/uninstall.sh | sh && unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN
 ```
 
-This removes `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` from `~/.claude/settings.json` and all shell rc files (`.zshrc`, `.bashrc`, fish config, etc.). Then run `unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN` to clear them from the current session.
+**fish:**
+```fish
+curl -fsSL https://raw.githubusercontent.com/x-saola/litellm-ultis/main/cli-dist/uninstall.sh | sh; and set -e ANTHROPIC_BASE_URL; and set -e ANTHROPIC_AUTH_TOKEN
+```
+
+This removes `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` from `~/.claude/settings.json` and all shell rc files (`.zshrc`, `.bashrc`, fish config, etc.), then clears them from your current session.
 
 ## Architecture
 

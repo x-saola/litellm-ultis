@@ -1,7 +1,7 @@
 import { join } from "path";
 import { homedir } from "os";
 
-const SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
+export const SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
 
 export async function writeClaudeSettings(baseUrl: string, authToken: string): Promise<string> {
   let settings: Record<string, any> = {};
