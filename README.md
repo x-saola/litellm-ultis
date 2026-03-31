@@ -31,15 +31,15 @@ To remove Claude Code env vars from your machine:
 
 **bash / zsh:**
 ```sh
-curl -fsSL https://raw.githubusercontent.com/x-saola/litellm-ultis/main/cli-dist/uninstall.sh | sh && unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN
+curl -fsSL https://raw.githubusercontent.com/x-saola/litellm-ultis/main/cli-dist/uninstall.sh | sh && unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN && claude /logout && claude /login
 ```
 
 **fish:**
 ```fish
-curl -fsSL https://raw.githubusercontent.com/x-saola/litellm-ultis/main/cli-dist/uninstall.sh | sh; and set -e ANTHROPIC_BASE_URL; and set -e ANTHROPIC_AUTH_TOKEN
+curl -fsSL https://raw.githubusercontent.com/x-saola/litellm-ultis/main/cli-dist/uninstall.sh | sh; and set -e ANTHROPIC_BASE_URL; and set -e ANTHROPIC_AUTH_TOKEN; and claude /logout; and claude /login
 ```
 
-This removes `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` from `~/.claude/settings.json` and all shell rc files (`.zshrc`, `.bashrc`, fish config, etc.), then clears them from your current session.
+This removes `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` from `~/.claude/settings.json` and all shell rc files (`.zshrc`, `.bashrc`, fish config, etc.), clears them from your current session, logs out, then logs back in with your Anthropic account.
 
 ## Architecture
 

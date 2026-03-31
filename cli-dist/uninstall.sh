@@ -24,7 +24,7 @@ fi
 
 TMP_BIN=$(mktemp)
 echo "Downloading $BIN_NAME..."
-curl -f --progress-bar "$BASE_URL/$BIN_NAME" -o "$TMP_BIN" 2>/dev/tty
+curl -f --retry 3 --retry-delay 2 --progress-bar "$BASE_URL/$BIN_NAME" -o "$TMP_BIN" 2>/dev/tty
 
 if [ "$OS" = "Darwin" ]; then
   xattr -cr "$TMP_BIN" 2>/dev/null || xattr -c "$TMP_BIN" 2>/dev/null || true
