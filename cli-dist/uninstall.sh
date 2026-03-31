@@ -3,7 +3,7 @@ set -e
 
 OS=$(uname -s)
 ARCH=$(uname -m)
-BASE_URL="https://raw.githubusercontent.com/x-saola/litellm-ultis/main/cli-dist"
+BASE_URL="https://github.com/x-saola/litellm-ultis/releases/download/0.1.0"
 
 if [ "$OS" = "Darwin" ]; then
   if [ "$ARCH" = "arm64" ]; then
